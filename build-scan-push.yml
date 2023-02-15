@@ -1,0 +1,97 @@
+.build:
+  stage: build
+  parallel:
+    matrix:
+      - IMAGE_NAME:
+          - $CI_PROJECT_NAME
+
+images:build:
+  extends: .build
+  image:
+    name: gcr.io/kaniko-project/executor:v1.9.1-debug
+    entrypoint: [""]
+  script:
+    - echo "{\"auths\":{\"${CI_REGISTRY}\":{\"auth\":\"$(printf "%s:%s" "${CI_REGISTRY_USER}" "${CI_REGISTRY_PASSWORD}" | base64 | tr -d '\n')\"}}}" > /kaniko/.docker/config.json
+    - |
+      destination_args="--tar-path=$IMAGE_NAME${VARIANT+-$VARIANT}.tar"
+      for tag in $CI_COMMIT_SHA $EXTRA_TAGS
+      do
+        destination_args="$destination_args --destination $CI_REGISTRY_IMAGE/$IMAGE_NAME${VARIANT+-$VARIANT}:$tag"
+      done
+
+      if [ -z "$IMAGE_DIR" ] && [ "$IMAGE_NAME" != "$CI_PROJECT_NAME" ]; then
+        IMAGE_DIR=$IMAGE_NAME
+      fi
+
+      /kaniko/executor \
+        --registry-mirror mirror.gcr.io \
+        --context "${IMAGE_DIR:-$CI_PROJECT_DIR}" \
+        --no-push \
+        ${VARIANT+--build-arg VARIANT=$VARIANT} \
+        ${REGISTRY_MIRROR+--build-arg REGISTRY_MIRROR=$REGISTRY_MIRROR} \
+        ${REGISTRY_MIRROR_LIB+--build-arg REGISTRY_MIRROR_LIB=$REGISTRY_MIRROR_LIB} \
+        $destination_args \
+        --cache=true \
+        --cache-repo=$CI_REGISTRY_IMAGE/$IMAGE_NAME${VARIANT+-$VARIANT}/kaniko-cache
+  artifacts:
+    expire_in: 1h
+    paths:
+      - "*.tar"
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      variables:
+        EXTRA_TAGS: master-$CI_COMMIT_SHA latest
+    - when: on_success
+
+images:check:
+  extends: .build
+  image:
+    name: aquasec/trivy
+    entrypoint: [""]
+  needs:
+    - job: images:build
+      artifacts: true
+  cache:
+    paths: [.cache/trivy]
+    key: vulndb
+  script:
+    - |
+      # Build report
+      trivy image --exit-code 0 --cache-dir $CI_PROJECT_DIR/.cache/trivy --no-progress --format json -o scanning-report-$IMAGE_NAME.json --input $IMAGE_NAME${VARIANT+-$VARIANT}.tar
+      # Print report
+      trivy image --exit-code 0 --cache-dir $CI_PROJECT_DIR/.cache/trivy --no-progress --severity HIGH --input $IMAGE_NAME${VARIANT+-$VARIANT}.tar
+      # Report severe vulnerabilities
+      trivy image --exit-code 1 --cache-dir $CI_PROJECT_DIR/.cache/trivy --severity CRITICAL --no-progress --input $IMAGE_NAME${VARIANT+-$VARIANT}.tar
+  # Enables https://docs.gitlab.com/ee/user/application_security/container_scanning/ (Container Scanning report is available on GitLab EE Ultimate or GitLab.com Gold)
+  artifacts:
+    when: always
+    name: "scan-report"
+    paths:
+      - scanning-report-$IMAGE_NAME${VARIANT+-$VARIANT}.json
+  rules:
+    - if: $CI_MERGE_REQUEST_IID
+      allow_failure: true
+    - when: on_success
+
+images:push:
+  extends: .build
+  image:
+    name: gcr.io/go-containerregistry/crane:debug
+    entrypoint: [""]
+  needs:
+    - job: images:build
+      artifacts: true
+    - job: images:check
+      artifacts: false
+  script:
+    - crane auth login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - |
+      for tag in $CI_COMMIT_SHA $EXTRA_TAGS
+      do
+        crane push "$IMAGE_NAME${VARIANT+-$VARIANT}.tar" "$CI_REGISTRY_IMAGE/$IMAGE_NAME${VARIANT+-$VARIANT}:$tag"
+      done
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      variables:
+        EXTRA_TAGS: master-$CI_COMMIT_SHA latest
+    - when: on_success
