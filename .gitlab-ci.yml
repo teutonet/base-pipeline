@@ -1,0 +1,4 @@
+include: 'build-scan-push.yml'
+
+stages:
+  - build
