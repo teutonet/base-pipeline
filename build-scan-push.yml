@@ -46,7 +46,7 @@ images:build:
 images:check:
   extends: .build
   image:
-    name: aquasec/trivy
+    name: ${REGISTRY_MIRROR}aquasec/trivy
     entrypoint: [""]
   needs:
     - job: images:build
