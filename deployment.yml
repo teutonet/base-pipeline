@@ -1,0 +1,121 @@
+.deployment-base:
+  stage: deploy
+  image: registry-gitlab.teuto.net/4teuto/dev/base-pipeline/base-pipeline:latest
+  variables:
+    SHELL: /bin/bash
+    VERSION: $CI_COMMIT_SHA
+    CHART_PATH: charts/$CI_PROJECT_NAME
+    RELEASE_NAME: $CI_ENVIRONMENT_NAME
+  script:
+    - |
+      # check for GPG private key
+      if [ -z "$GPG_PRIV_KEY" ]; then
+        echo "no GPG_PRIV_KEY given!!!"
+      else
+        gpg --import <(echo "$GPG_PRIV_KEY" | tr -d '\r')
+      fi
+      # start GPG agent
+      eval $(gpg-agent --daemon -s)
+    - |
+      helm dependency update $CHART_PATH
+      helm upgrade --install -n $KUBE_NAMESPACE $RELEASE_NAME $CHART_PATH --wait \
+        $HELM_ARGS
+  after_script:
+    - &print_url echo $CI_ENVIRONMENT_URL
+  timeout: 20 minutes
+  interruptible: false
+
+deployment:start:feature:
+  extends: .deployment-base
+  variables:
+    INGRESS_BASE_URL: $CI_COMMIT_REF_SLUG.$CI_PROJECT_NAME.dev.teuto.dev
+    RELEASE_NAME: "feature"
+  before_script:
+    - kubectl create namespace $KUBE_NAMESPACE || true
+  except:
+    refs:
+      - tags
+      - main
+  environment:
+    name: $CI_COMMIT_REF_NAME
+    url: https://$INGRESS_BASE_URL
+    on_stop: "deployment:stop-manual:feature"
+
+deployment:start:staging:
+  extends: .deployment-base
+  variables:
+    INGRESS_BASE_URL: $CI_PROJECT_NAME.stg.teuto.dev
+  only:
+    refs:
+      - main
+  environment:
+    name: staging
+    url: https://$INGRESS_BASE_URL
+    on_stop: "deployment:stop-manual:staging"
+
+deployment:start:prod:
+  extends: .deployment-base
+  only:
+    refs:
+      - tags
+  environment:
+    name: production
+    url: https://$INGRESS_BASE_URL
+    on_stop: "deployment:stop-manual:production"
+
+.deployment-base:stop:
+  image: registry-gitlab.teuto.net/4teuto/dev/base-pipeline/base-pipeline:latest
+  stage: deploy-stop
+  variables:
+    RELEASE_NAME: $CI_ENVIRONMENT_NAME
+  interruptible: false
+  script:
+    - helm uninstall -n $KUBE_NAMESPACE $RELEASE_NAME --wait
+
+.deployment-base:stop-manual: &stop_manual
+  extends: .deployment-base:stop
+  needs: []
+  when: manual
+
+deployment:stop:feature:
+  extends: .deployment-base:stop
+  variables:
+    RELEASE_NAME: "feature"
+  after_script:
+    - kubectl delete namespace $KUBE_NAMESPACE --wait=false
+  when: always
+  allow_failure: true
+  except:
+    refs:
+      - tags
+      - main
+  environment:
+    name: $CI_COMMIT_REF_NAME
+    action: stop
+
+deployment:stop-manual:feature:
+  <<: *stop_manual
+  extends: deployment:stop:feature
+  variables:
+    RELEASE_NAME: $CI_ENVIRONMENT_NAME
+  allow_failure: true
+
+deployment:stop-manual:staging:
+  <<: *stop_manual
+  only:
+    refs:
+      - main
+  environment:
+    name: staging
+    action: stop
+
+deployment:stop-manual:production:
+  <<: *stop_manual
+  before_script: '[[ "$CONFIRMATION" == "YES-I-WANT-TO-DESTROY-PRODUCTION!" ]]'
+  only:
+    refs:
+      - tags
+  environment:
+    name: production
+    action: stop
+
