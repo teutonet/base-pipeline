@@ -23,9 +23,14 @@ images:build:
         IMAGE_DIR=$IMAGE_NAME
       fi
 
+      BUILD_CONTEXT=${IMAGE_DIR:-$CI_PROJECT_DIR}
+
+    - echo "build image with name '$IMAGE_NAME' in directory '$BUILD_CONTEXT'"
+
+    - |
       /kaniko/executor \
         --registry-mirror mirror.gcr.io \
-        --context "${IMAGE_DIR:-$CI_PROJECT_DIR}" \
+        --context "${BUILD_CONTEXT}" \
         --no-push \
         ${VARIANT+--build-arg VARIANT=$VARIANT} \
         ${REGISTRY_MIRROR+--build-arg REGISTRY_MIRROR=$REGISTRY_MIRROR} \
