@@ -31,6 +31,8 @@ images:build:
       /kaniko/executor \
         --registry-mirror mirror.gcr.io \
         --context "${BUILD_CONTEXT}" \
+        `# '--dockerfile' must be set because kaniko only uses the dockerfile from '--context' if none exists in the project folder` \
+        --dockerfile "${BUILD_CONTEXT}/Dockerfile" \
         --no-push \
         ${VARIANT+--build-arg VARIANT=$VARIANT} \
         ${REGISTRY_MIRROR+--build-arg REGISTRY_MIRROR=$REGISTRY_MIRROR} \
