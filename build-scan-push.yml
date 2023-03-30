@@ -12,6 +12,10 @@ images:build:
     entrypoint: [""]
   script:
     - echo "{\"auths\":{\"${CI_REGISTRY}\":{\"auth\":\"$(printf "%s:%s" "${CI_REGISTRY_USER}" "${CI_REGISTRY_PASSWORD}" | base64 | tr -d '\n')\"}}}" > /kaniko/.docker/config.json
+    - &set_default_image_dir |
+      if [ -z "$IMAGE_DIR" ] && [ "$IMAGE_NAME" != "$CI_PROJECT_NAME" ]; then
+        IMAGE_DIR=$IMAGE_NAME
+      fi
     - |
       destination_args="--tar-path=$IMAGE_NAME${VARIANT+-$VARIANT}.tar"
       for tag in $CI_COMMIT_SHA $EXTRA_TAGS
@@ -62,13 +66,14 @@ images:check:
     paths: [.cache/trivy]
     key: vulndb
   script:
+    - *set_default_image_dir
     - |
       # Build report
-      trivy image --exit-code 0 --cache-dir $CI_PROJECT_DIR/.cache/trivy --no-progress --format json -o scanning-report-$IMAGE_NAME.json --input $IMAGE_NAME${VARIANT+-$VARIANT}.tar
+      trivy image --ignorefile $IMAGE_DIR/.trivyignore --exit-code 0 --cache-dir $CI_PROJECT_DIR/.cache/trivy --no-progress --format json -o scanning-report-$IMAGE_NAME.json --input $IMAGE_NAME${VARIANT+-$VARIANT}.tar
       # Print report
-      trivy image --exit-code 0 --cache-dir $CI_PROJECT_DIR/.cache/trivy --no-progress --severity HIGH --input $IMAGE_NAME${VARIANT+-$VARIANT}.tar
+      trivy image --ignorefile $IMAGE_DIR/.trivyignore --exit-code 0 --cache-dir $CI_PROJECT_DIR/.cache/trivy --no-progress --severity HIGH --input $IMAGE_NAME${VARIANT+-$VARIANT}.tar
       # Report severe vulnerabilities
-      trivy image --exit-code 1 --cache-dir $CI_PROJECT_DIR/.cache/trivy --severity CRITICAL --no-progress --input $IMAGE_NAME${VARIANT+-$VARIANT}.tar
+      trivy image --ignorefile $IMAGE_DIR/.trivyignore --exit-code 1 --cache-dir $CI_PROJECT_DIR/.cache/trivy --severity CRITICAL --no-progress --input $IMAGE_NAME${VARIANT+-$VARIANT}.tar
   # Enables https://docs.gitlab.com/ee/user/application_security/container_scanning/ (Container Scanning report is available on GitLab EE Ultimate or GitLab.com Gold)
   artifacts:
     when: always
