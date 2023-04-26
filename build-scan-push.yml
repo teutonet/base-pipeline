@@ -43,7 +43,10 @@ images:build:
         ${REGISTRY_MIRROR_LIB+--build-arg REGISTRY_MIRROR_LIB=$REGISTRY_MIRROR_LIB} \
         $destination_args \
         --cache=true \
-        --cache-repo=$CI_REGISTRY_IMAGE/$IMAGE_NAME${VARIANT+-$VARIANT}/kaniko-cache
+        --cache-repo=$CI_REGISTRY_IMAGE/$IMAGE_NAME${VARIANT+-$VARIANT}/kaniko-cache \
+        --label "org.opencontainers.image.source=${CI_PROJECT_URL}" \
+        --label "org.opencontainers.image.revision=${CI_COMMIT_SHA}" \
+        --label "org.opencontainers.image.version=${tag}"
   artifacts:
     expire_in: 1h
     paths:
