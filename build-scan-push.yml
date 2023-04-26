@@ -2,6 +2,9 @@
   - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
     variables:
       EXTRA_TAGS: $CI_DEFAULT_BRANCH-$CI_COMMIT_SHA latest
+  - if: $CI_COMMIT_TAG
+    variables:
+      EXTRA_TAGS: $CI_COMMIT_TAG
   - when: on_success
 
 .build:
