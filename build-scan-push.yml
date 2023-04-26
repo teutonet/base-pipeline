@@ -1,3 +1,9 @@
+.default_rules: &default_rules
+  - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    variables:
+      EXTRA_TAGS: master-$CI_COMMIT_SHA latest
+  - when: on_success
+
 .build:
   stage: build
   parallel:
@@ -52,10 +58,7 @@ images:build:
     paths:
       - "*.tar"
   rules:
-    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
-      variables:
-        EXTRA_TAGS: master-$CI_COMMIT_SHA latest
-    - when: on_success
+    - *default_rules
 
 images:check:
   extends: .build
@@ -106,7 +109,4 @@ images:push:
         crane push "$IMAGE_NAME${VARIANT+-$VARIANT}.tar" "$CI_REGISTRY_IMAGE/$IMAGE_NAME${VARIANT+-$VARIANT}:$tag"
       done
   rules:
-    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
-      variables:
-        EXTRA_TAGS: master-$CI_COMMIT_SHA latest
-    - when: on_success
+    - *default_rules
