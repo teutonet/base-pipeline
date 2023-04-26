@@ -1,7 +1,7 @@
 .default_rules: &default_rules
   - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
     variables:
-      EXTRA_TAGS: master-$CI_COMMIT_SHA latest
+      EXTRA_TAGS: $CI_DEFAULT_BRANCH-$CI_COMMIT_SHA latest
   - when: on_success
 
 .build:
