@@ -11,7 +11,9 @@
   stage: build
   parallel:
     matrix:
-      - IMAGE_NAME:
+      - IMAGE_DIR:
+          - $CI_PROJECT_DIR
+        IMAGE_NAME:
           - $CI_PROJECT_NAME
 
 images:build:
@@ -36,7 +38,7 @@ images:build:
         IMAGE_DIR=$IMAGE_NAME
       fi
 
-      BUILD_CONTEXT=${IMAGE_DIR:-$CI_PROJECT_DIR}
+      BUILD_CONTEXT=${IMAGE_DIR}
 
     - echo "build image with name '$IMAGE_NAME' in directory '$BUILD_CONTEXT'"
 
