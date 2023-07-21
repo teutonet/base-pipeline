@@ -2,3 +2,11 @@ include: 'build-scan-push.yml'
 
 stages:
   - build
+
+.build:
+  parallel:
+    matrix:
+      - IMAGE_NAME:
+        - release-tools
+      - IMAGE_NAME: base-pipeline
+        IMAGE_DIR: "."
