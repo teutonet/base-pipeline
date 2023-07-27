@@ -12,5 +12,6 @@ stages:
     matrix:
       - IMAGE_NAME:
         - release-tools
+        - kaniko-trivy
       - IMAGE_NAME: base-pipeline
         IMAGE_DIR: "."
