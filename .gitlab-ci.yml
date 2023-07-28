@@ -5,6 +5,7 @@ include:
 
 stages:
   - build
+  - test
   - deploy
 
 .build:
@@ -15,3 +16,12 @@ stages:
         - kaniko-trivy
       - IMAGE_NAME: base-pipeline
         IMAGE_DIR: "."
+# ensure that we can build ourselves with the new kaniko-trivy image
+self-test:
+  extends: build-scan-push
+  stage: test
+  needs:
+    - build-scan-push
+  image:
+    name: $CI_REGISTRY_IMAGE/kaniko-trivy:$CI_COMMIT_SHA
+    entrypoint: [""]
