@@ -93,11 +93,8 @@ build-scan-push:
       # Report severe vulnerabilities for non MRs
       # fail only on non MRs
       if [ -z "$CI_MERGE_REQUEST_IID" ]; then
-        set +e
+        trivy image --ignorefile $IMAGE_DIR/.trivyignore --exit-code 1 --cache-dir $CI_PROJECT_DIR/.cache/trivy --severity CRITICAL --no-progress --input $IMAGE_NAME${VARIANT+-$VARIANT}.tar
       fi
-      trivy image --ignorefile $IMAGE_DIR/.trivyignore --exit-code 1 --cache-dir $CI_PROJECT_DIR/.cache/trivy --severity CRITICAL --no-progress --input $IMAGE_NAME${VARIANT+-$VARIANT}.tar
-      TRIVY_EXIT_CODE=$?
-      set -e
     # step 3: upload the image
     - crane auth login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
     - |
@@ -105,15 +102,12 @@ build-scan-push:
       do
         crane push "$IMAGE_NAME${VARIANT+-$VARIANT}.tar" "$CI_REGISTRY_IMAGE/$IMAGE_NAME${VARIANT+-$VARIANT}:$tag"
       done
-      exit $TRIVY_EXIT_CODE
   artifacts:
     when: always
     name: "scan-report"
     paths:
       - scanning-report-$IMAGE_NAME${VARIANT+-$VARIANT}.json
   rules:
-    - if: $CI_MERGE_REQUEST_IID
-      allow_failure: true
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
       variables:
         EXTRA_TAGS: $CI_DEFAULT_BRANCH-$CI_COMMIT_SHA latest
@@ -121,3 +115,20 @@ build-scan-push:
       variables:
         EXTRA_TAGS: $CI_COMMIT_TAG
     - when: on_success
+
+vulnerability-guard:
+  stage: build
+  needs:
+    - job: build-scan-push
+      artifacts: true
+  image: ${REGISTRY_MIRROR}badouralix/curl-jq:alpine@sha256:a627689c72d87ace6c7f276d0971c6c3200d93b7ba18b88e002ada7ae62bc105
+  script:
+    - | 
+        for report in scanning-report-*.json
+        do
+          echo "checking $report"
+          cat "$report" | jq -e '[.Results[]?.Vulnerabilities[]?.Severity] | contains(["CRITICAL"]) | not'
+        done
+  rules:
+    - if: $CI_MERGE_REQUEST_IID
+      allow_failure: true
