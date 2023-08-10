@@ -26,6 +26,11 @@ create-release:
       fi
     - echo "new version $VERSION"
     # generate changelog with git-cliff
+    - |
+      if [ -n "GIT_CLIFF_CONFIG" ]; then
+        cp -a ${GIT_CLIFF_CONFIG} "${GIT_CLIFF_CONFIG}.toml"
+        export GIT_CLIFF_CONFIG="${GIT_CLIFF_CONFIG}.toml"
+      fi
     - CHANGELOG=$(git-cliff -r . --tag ${VERSION} -u)
     # create release with release-cli because ci-keywords cant use env vars from script
     - release-cli --server-url https://$CI_SERVER_HOST --job-token=$CI_JOB_TOKEN --project-id $CI_PROJECT_ID create --name "Release ${VERSION}" --tag-name ${VERSION} --ref $CI_COMMIT_SHA --description "$CHANGELOG"
