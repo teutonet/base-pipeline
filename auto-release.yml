@@ -1,5 +1,7 @@
 create-release:
-  image: registry-gitlab.teuto.net/4teuto/dev/base-pipeline/release-tools:latest
+  image:
+    name: registry-gitlab.teuto.net/4teuto/dev/base-pipeline/release-tools:latest
+    entrypoint: [""]
   when: manual
   stage: deploy
   variables:
