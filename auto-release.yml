@@ -1,5 +1,7 @@
 create-release:
-  image: registry-gitlab.teuto.net/4teuto/dev/base-pipeline/release-tools:latest
+  image:
+    name: registry-gitlab.teuto.net/4teuto/dev/base-pipeline/release-tools:latest
+    entrypoint: [""]
   when: manual
   stage: deploy
   variables:
@@ -10,9 +12,9 @@ create-release:
     - |
       if [ -z $VERSION ]; then
         # get latest release
-        'json_data=$(wget -O - --header="JOB-TOKEN: ${CI_JOB_TOKEN}" "https://gitlab.teuto.net/api/v4/projects/${CI_PROJECT_ID}/releases/permalink/latest")'
+        json_data=$(wget -O - --header="JOB-TOKEN: ${CI_JOB_TOKEN}" "https://gitlab.teuto.net/api/v4/projects/${CI_PROJECT_ID}/releases/permalink/latest")
         # get latest tag name from json
-        'current_version_string=$(echo "$json_data" | grep -o "\"tag_name\": *\"[^\"]*" | cut -d"\"" -f4)'
+        current_version_string=$(echo "$json_data" | grep -o "\"tag_name\": *\"[^\"]*" | cut -d"\"" -f4)
         echo "current version $current_version_string"
         # remove "v" from version
         current_version=$(echo "$current_version_string" | sed 's/v//')
@@ -24,7 +26,12 @@ create-release:
       fi
     - echo "new version $VERSION"
     # generate changelog with git-cliff
-    - CHANGELOG=$(git-cliff -r . --tag ${VERSION})
+    - |
+      if [ -n "GIT_CLIFF_CONFIG" ]; then
+        cp -a ${GIT_CLIFF_CONFIG} "${GIT_CLIFF_CONFIG}.toml"
+        export GIT_CLIFF_CONFIG="${GIT_CLIFF_CONFIG}.toml"
+      fi
+    - CHANGELOG=$(git-cliff -r . --tag ${VERSION} -u)
     # create release with release-cli because ci-keywords cant use env vars from script
     - release-cli --server-url https://$CI_SERVER_HOST --job-token=$CI_JOB_TOKEN --project-id $CI_PROJECT_ID create --name "Release ${VERSION}" --tag-name ${VERSION} --ref $CI_COMMIT_SHA --description "$CHANGELOG"
   only:
