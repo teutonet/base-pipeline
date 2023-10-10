@@ -16,11 +16,27 @@
         IMAGE_NAME:
           - $CI_PROJECT_NAME
 
+fetch-version:
+  image: ${REGISTRY_MIRROR}bitnami/git:2.42.0-debian-11-r41
+  stage: build
+  variables:
+    GIT_FETCH_EXTRA_FLAGS: "--filter=tree:0"
+    GIT_DEPTH: "0"
+  script:
+    - echo IMAGE_BUILD_VERSION="`git describe --tags --abbrev=0`" > version-var.env
+  artifacts:
+    reports:
+      dotenv: version-var.env
+  rules:
+    - *default_rules
+
 images:build:
   extends: .build
   image:
     name: gcr.io/kaniko-project/executor:v1.9.1-debug
     entrypoint: [""]
+  needs:
+    - fetch-version
   script:
     - echo "{\"auths\":{\"${CI_REGISTRY}\":{\"auth\":\"$(printf "%s:%s" "${CI_REGISTRY_USER}" "${CI_REGISTRY_PASSWORD}" | base64 | tr -d '\n')\"}}}" > /kaniko/.docker/config.json
     - &set_default_image_dir |
@@ -52,6 +68,8 @@ images:build:
         ${VARIANT+--build-arg VARIANT=$VARIANT} \
         ${REGISTRY_MIRROR+--build-arg REGISTRY_MIRROR=$REGISTRY_MIRROR} \
         ${REGISTRY_MIRROR_LIB+--build-arg REGISTRY_MIRROR_LIB=$REGISTRY_MIRROR_LIB} \
+        --build-arg IMAGE_BUILD_VERSION=$IMAGE_BUILD_VERSION \
+        --build-arg IMAGE_BUILD_SHA=$CI_COMMIT_SHORT_SHA \
         $destination_args \
         --cache=true \
         --cache-repo=$CI_REGISTRY_IMAGE/$IMAGE_NAME${VARIANT+-$VARIANT}/kaniko-cache \
