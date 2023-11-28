@@ -1,2 +1,4 @@
 # Accept risk in libdb5.3
-CVE-2019-8457 exp:2023-11-01
+CVE-2019-8457
+# Accept risk in zlib1g (minizip), since the vulnerable binary is actually not present
+CVE-2023-45853
