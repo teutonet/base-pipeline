@@ -52,6 +52,7 @@ deployment:start:staging:
   variables:
     KUBE_NAMESPACE: $KUBE_NAMESPACE_STAGING
     INGRESS_BASE_URL: $CI_PROJECT_NAME.stg.teuto.dev
+    VERSION: main-$CI_COMMIT_SHA
   only:
     refs:
       - main
@@ -64,6 +65,7 @@ deployment:start:prod:
   extends: .deployment-base
   variables:
     KUBE_NAMESPACE: $KUBE_NAMESPACE_PRODUCTION
+    VERSION: $CI_COMMIT_TAG
   only:
     refs:
       - tags
