@@ -1,7 +1,10 @@
-include: 'build-scan-push.yml'
+include:
+  - 'build-scan-push.yml'
+  - 'auto-release.yml'
 
 stages:
   - build
+  - deploy
 
 .build:
   parallel:
