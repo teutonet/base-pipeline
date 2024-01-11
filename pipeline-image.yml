@@ -1,0 +1,2 @@
+variables:
+  PIPELINE_IMAGE: registry-gitlab.teuto.net/4teuto/dev/base-pipeline/base-pipeline
