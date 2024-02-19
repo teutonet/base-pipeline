@@ -108,8 +108,6 @@ deployment:stop:feature:
 deployment:stop-manual:feature:
   <<: *stop_manual
   extends: deployment:stop:feature
-  variables:
-    RELEASE_NAME: $CI_ENVIRONMENT_NAME
   allow_failure: true
 
 deployment:stop-manual:staging:
