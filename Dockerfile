@@ -7,17 +7,17 @@ ARG REGISTRY_MIRROR="" \
 # renovate: datasource=github-tags depName=kubernetes/kubectl
 ARG KUBECTL_VERSION=v1.24.7
 # renovate: datasource=github-tags depName=helm/helm
-ARG HELM_VERSION=v3.11.1
+ARG HELM_VERSION=v3.13.3
 # renovate: datasource=github-tags depName=mozilla/sops
-ARG SOPS_VERSION=v3.7.3
+ARG SOPS_VERSION=v3.8.1
 # renovate: datasource=github-tags depName=mikefarah/yq
-ARG YQ_VERSION=v4.30.8
+ARG YQ_VERSION=v4.40.5
 # renovate: datasource=github-tags depName=grafana/tanka
-ARG TANKA_VERSION=v0.24.0
+ARG TANKA_VERSION=v0.26.0
 
 
-FROM ${REGISTRY_MIRROR}fluxcd/flux-cli:v0.23.0 as flux
-FROM ${REGISTRY_MIRROR_LIB}alpine:3.17.2 AS base
+FROM ${REGISTRY_MIRROR}fluxcd/flux-cli:v2.2.2 as flux
+FROM ${REGISTRY_MIRROR_LIB}alpine:3.19.0 AS base
 
 LABEL maintainer="oc@teuto.net"
 LABEL tools="kubectl,sops,tanka,flux,envsubst,docker,helm,yq,jq"
