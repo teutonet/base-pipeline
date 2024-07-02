@@ -17,7 +17,7 @@ ARG TANKA_VERSION=v0.27.1
 
 
 FROM ${REGISTRY_MIRROR}fluxcd/flux-cli:v2.2.2 as flux
-FROM ${REGISTRY_MIRROR_LIB}alpine:3.19.0 AS base
+FROM ${REGISTRY_MIRROR_LIB}alpine:3.20 AS base
 
 LABEL maintainer="oc@teuto.net"
 LABEL tools="kubectl,sops,tanka,flux,envsubst,docker,helm,yq,jq"
