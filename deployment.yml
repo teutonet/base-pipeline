@@ -6,7 +6,7 @@ variables:
 
 .deployment-base:
   stage: deploy
-  image: registry-gitlab.teuto.net/4teuto/dev/base-pipeline/base-pipeline:latest
+  image: tickets.teuto.net:5050/teuto-public/base-pipeline/base-pipeline:latest
   variables:
     SHELL: /bin/bash
     VERSION: $CI_COMMIT_SHA
@@ -75,7 +75,7 @@ deployment:start:prod:
     on_stop: "deployment:stop-manual:production"
 
 .deployment-base:stop:
-  image: registry-gitlab.teuto.net/4teuto/dev/base-pipeline/base-pipeline:latest
+  image: tickets.teuto.net:5050/teuto-public/base-pipeline/base-pipeline:latest
   stage: deploy-stop
   variables:
     RELEASE_NAME: $CI_ENVIRONMENT_NAME

@@ -32,7 +32,7 @@ fetch-version:
 build-scan-push:
   extends: .build
   image:
-    name: registry-gitlab.teuto.net/4teuto/dev/base-pipeline/kaniko-trivy:latest
+    name: tickets.teuto.net:5050/teuto-public/base-pipeline/kaniko-trivy:latest
     entrypoint: [""]
   cache:
     paths: [.cache/trivy]
