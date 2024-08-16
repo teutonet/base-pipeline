@@ -2,3 +2,6 @@
 CVE-2024-24790
 CVE-2023-24538
 CVE-2023-24540
+
+# Docker authz plugins are not used
+CVE-2024-41110
