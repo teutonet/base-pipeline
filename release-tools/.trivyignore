@@ -4,3 +4,6 @@ CVE-2019-8457
 CVE-2023-45853
 # netip isn't used
 CVE-2024-24790
+
+# not critical
+CVE-2024-38428

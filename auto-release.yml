@@ -1,6 +1,6 @@
 create-release:
   image:
-    name: registry-gitlab.teuto.net/4teuto/dev/base-pipeline/release-tools:latest
+    name: tickets.teuto.net:5050/teuto-public/base-pipeline/release-tools:latest
     entrypoint: [""]
   when: manual
   stage: deploy

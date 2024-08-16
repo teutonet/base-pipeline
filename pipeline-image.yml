@@ -1,2 +1,2 @@
 variables:
-  PIPELINE_IMAGE: registry-gitlab.teuto.net/4teuto/dev/base-pipeline/base-pipeline
+  PIPELINE_IMAGE: tickets.teuto.net:5050/teuto-public/base-pipeline/base-pipeline

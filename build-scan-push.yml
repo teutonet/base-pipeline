@@ -29,19 +29,26 @@ fetch-version:
   rules:
     - *default_rules
 
-images:build:
+build-scan-push:
   extends: .build
   image:
-    name: gcr.io/kaniko-project/executor:v1.9.1-debug
+    name: tickets.teuto.net:5050/teuto-public/base-pipeline/kaniko-trivy:latest
     entrypoint: [""]
+  cache:
+    paths: [.cache/trivy]
+    key: vulndb
   needs:
     - fetch-version
   script:
-    - echo "{\"auths\":{\"${CI_REGISTRY}\":{\"auth\":\"$(printf "%s:%s" "${CI_REGISTRY_USER}" "${CI_REGISTRY_PASSWORD}" | base64 | tr -d '\n')\"}}}" > /kaniko/.docker/config.json
-    - &set_default_image_dir |
-      if [ -z "$IMAGE_DIR" ] && [ "$IMAGE_NAME" != "$CI_PROJECT_NAME" ]; then
-        IMAGE_DIR=$IMAGE_NAME
+    - |
+      if [ "$CI_COMMIT_BRANCH" == "$CI_DEFAULT_BRANCH" ]; then
+        EXTRA_TAGS="$CI_DEFAULT_BRANCH-$CI_COMMIT_SHA latest"
       fi
+      if [ -n "$CI_COMMIT_TAG" ]; then
+        EXTRA_TAGS="$CI_COMMIT_TAG"
+      fi
+    # step 1: build the image
+    - echo "{\"auths\":{\"${CI_REGISTRY}\":{\"auth\":\"$(printf "%s:%s" "${CI_REGISTRY_USER}" "${CI_REGISTRY_PASSWORD}" | base64 | tr -d '\n')\"}}}" > /kaniko/.docker/config.json
     - |
       destination_args="--tar-path=$IMAGE_NAME${VARIANT+-$VARIANT}.tar"
       for tag in $CI_COMMIT_SHA $EXTRA_TAGS
@@ -75,60 +82,53 @@ images:build:
         --label "org.opencontainers.image.source=${CI_PROJECT_URL}" \
         --label "org.opencontainers.image.revision=${CI_COMMIT_SHA}" \
         --label "org.opencontainers.image.version=${tag}"
-  artifacts:
-    expire_in: 1h
-    paths:
-      - "*.tar"
-  rules:
-    - *default_rules
-
-images:check:
-  extends: .build
-  image:
-    name: ${REGISTRY_MIRROR}aquasec/trivy
-    entrypoint: [""]
-  needs:
-    - job: images:build
-      artifacts: true
-  cache:
-    paths: [.cache/trivy]
-    key: vulndb
-  script:
-    - *set_default_image_dir
+    # step 2: scan the image
     - |
+      # make sure there is a tmp directory for trivy
+      mkdir -p /tmp
       # Build report
-      trivy image --ignorefile $IMAGE_DIR/.trivyignore --exit-code 0 --cache-dir $CI_PROJECT_DIR/.cache/trivy --no-progress --format json -o scanning-report-$IMAGE_NAME.json --input $IMAGE_NAME${VARIANT+-$VARIANT}.tar
+      trivy image --ignorefile $IMAGE_DIR/.trivyignore --exit-code 0 --cache-dir $CI_PROJECT_DIR/.cache/trivy --no-progress --format json -o scanning-report-$IMAGE_NAME${VARIANT+-$VARIANT}.json --input $IMAGE_NAME${VARIANT+-$VARIANT}.tar
       # Print report
-      trivy image --ignorefile $IMAGE_DIR/.trivyignore --exit-code 0 --cache-dir $CI_PROJECT_DIR/.cache/trivy --no-progress --severity HIGH --input $IMAGE_NAME${VARIANT+-$VARIANT}.tar
-      # Report severe vulnerabilities
-      trivy image --ignorefile $IMAGE_DIR/.trivyignore --exit-code 1 --cache-dir $CI_PROJECT_DIR/.cache/trivy --severity CRITICAL --no-progress --input $IMAGE_NAME${VARIANT+-$VARIANT}.tar
-  # Enables https://docs.gitlab.com/ee/user/application_security/container_scanning/ (Container Scanning report is available on GitLab EE Ultimate or GitLab.com Gold)
-  artifacts:
-    when: always
-    name: "scan-report"
-    paths:
-      - scanning-report-$IMAGE_NAME${VARIANT+-$VARIANT}.json
-  rules:
-    - if: $CI_MERGE_REQUEST_IID
-      allow_failure: true
-    - when: on_success
-
-images:push:
-  extends: .build
-  image:
-    name: gcr.io/go-containerregistry/crane:debug
-    entrypoint: [""]
-  needs:
-    - job: images:build
-      artifacts: true
-    - job: images:check
-      artifacts: false
-  script:
+      trivy image --ignorefile $IMAGE_DIR/.trivyignore --exit-code 0 --cache-dir $CI_PROJECT_DIR/.cache/trivy --no-progress --severity HIGH,CRITICAL --input $IMAGE_NAME${VARIANT+-$VARIANT}.tar
+      # Report severe vulnerabilities for non MRs
+      # fail only on non MRs
+      if [ -z "$CI_MERGE_REQUEST_IID" ]; then
+        trivy image --ignorefile $IMAGE_DIR/.trivyignore --exit-code 1 --cache-dir $CI_PROJECT_DIR/.cache/trivy --severity CRITICAL --no-progress --input $IMAGE_NAME${VARIANT+-$VARIANT}.tar
+      fi
+    # step 3: upload the image
     - crane auth login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
     - |
       for tag in $CI_COMMIT_SHA $EXTRA_TAGS
       do
         crane push "$IMAGE_NAME${VARIANT+-$VARIANT}.tar" "$CI_REGISTRY_IMAGE/$IMAGE_NAME${VARIANT+-$VARIANT}:$tag"
       done
+  artifacts:
+    when: always
+    name: "scan-report"
+    paths:
+      - scanning-report-$IMAGE_NAME${VARIANT+-$VARIANT}.json
   rules:
-    - *default_rules
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      variables:
+        EXTRA_TAGS: $CI_DEFAULT_BRANCH-$CI_COMMIT_SHA latest
+    - if: $CI_COMMIT_TAG
+      variables:
+        EXTRA_TAGS: $CI_COMMIT_TAG
+    - when: on_success
+
+vulnerability-guard:
+  stage: build
+  needs:
+    - job: build-scan-push
+      artifacts: true
+  image: ${REGISTRY_MIRROR}badouralix/curl-jq:alpine@sha256:a627689c72d87ace6c7f276d0971c6c3200d93b7ba18b88e002ada7ae62bc105
+  script:
+    - | 
+        for report in scanning-report-*.json
+        do
+          echo "checking $report"
+          cat "$report" | jq -e '[.Results[]?.Vulnerabilities[]?.Severity] | contains(["CRITICAL"]) | not'
+        done
+  rules:
+    - if: $CI_MERGE_REQUEST_IID
+      allow_failure: true
