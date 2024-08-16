@@ -12,7 +12,7 @@ create-release:
     - |
       if [ -z $VERSION ]; then
         # get latest release
-        json_data=$(wget -O - --header="JOB-TOKEN: ${CI_JOB_TOKEN}" "https://gitlab.teuto.net/api/v4/projects/${CI_PROJECT_ID}/releases/permalink/latest")
+        json_data=$(wget -O - --header="JOB-TOKEN: ${CI_JOB_TOKEN}" "https://tickets.teuto.net/api/v4/projects/${CI_PROJECT_ID}/releases/permalink/latest")
         # get latest tag name from json
         current_version_string=$(echo "$json_data" | grep -o "\"tag_name\": *\"[^\"]*" | cut -d"\"" -f4)
         echo "current version $current_version_string"
