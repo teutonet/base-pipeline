@@ -27,7 +27,7 @@ create-release:
     - echo "new version $VERSION"
     # generate changelog with git-cliff
     - |
-      if [ -n "GIT_CLIFF_CONFIG" ]; then
+      if [ -n "${GIT_CLIFF_CONFIG}" ]; then
         cp -a ${GIT_CLIFF_CONFIG} "${GIT_CLIFF_CONFIG}.toml"
         export GIT_CLIFF_CONFIG="${GIT_CLIFF_CONFIG}.toml"
       fi
