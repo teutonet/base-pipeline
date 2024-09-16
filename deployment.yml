@@ -12,19 +12,35 @@ variables:
     VERSION: $CI_COMMIT_SHA
     RELEASE_NAME: $CI_ENVIRONMENT_NAME
   script:
+    - &deploy_functions |
+      setup_gpg_agent () {
+        # check for GPG private key
+        if [ -z "$GPG_PRIV_KEY" ]; then
+          echo "no GPG_PRIV_KEY given!!!"
+        else
+          gpg --import <(echo "$GPG_PRIV_KEY" | tr -d '\r')
+        fi
+        # start GPG agent
+        eval $(gpg-agent --daemon -s)
+      }
+      install_upgrade_helm_release_and_wait () {
+        helm dependency update $CHART_PATH
+        helm upgrade --install -n $KUBE_NAMESPACE $RELEASE_NAME $CHART_PATH --wait \
+          $HELM_ARGS $(for v in $HELM_VERSION_ARGS; do echo --set "$v=$VERSION"; done)
+        echo "waiting for helm releases"
+        while helm list -q -n $KUBE_NAMESPACE --failed --pending | grep '^'
+        do
+          sleep 5
+        done
+        echo "waiting for pods"
+        while kubectl -n $KUBE_NAMESPACE get pods --field-selector=status.phase!=Succeeded -o go-template='{{range $index, $element := .items}}{{range .status.containerStatuses}}{{if not .ready}}{{$element.metadata.name}}{{"\n"}}{{end}}{{end}}{{end}}' | grep '^'
+        do
+          sleep 5
+        done
+      }
     - |
-      # check for GPG private key
-      if [ -z "$GPG_PRIV_KEY" ]; then
-        echo "no GPG_PRIV_KEY given!!!"
-      else
-        gpg --import <(echo "$GPG_PRIV_KEY" | tr -d '\r')
-      fi
-      # start GPG agent
-      eval $(gpg-agent --daemon -s)
-    - |
-      helm dependency update $CHART_PATH
-      helm upgrade --install -n $KUBE_NAMESPACE $RELEASE_NAME $CHART_PATH --wait \
-        $HELM_ARGS
+      setup_gpg_agent
+      install_upgrade_helm_release_and_wait
   after_script:
     - &print_url echo $CI_ENVIRONMENT_URL
   timeout: 20 minutes
@@ -38,6 +54,19 @@ deployment:start:feature:
     RELEASE_NAME: "feature"
   before_script:
     - kubectl create namespace $KUBE_NAMESPACE || true
+  script:
+    - *deploy_functions
+    - |
+      setup_gpg_agent
+      git worktree add .git/worktree/merge-base $CI_MERGE_REQUEST_DIFF_BASE_SHA
+      cd .git/worktree/merge-base
+      export VERSION=$CI_DEFAULT_BRANCH-$CI_MERGE_REQUEST_DIFF_BASE_SHA
+      echo "rolling out main branch deployment: $VERSION"
+      install_upgrade_helm_release_and_wait
+      cd -
+      export VERSION=$CI_COMMIT_SHA
+      echo "main branch rolled out, upgrading with feature deployment: $VERSION"
+      install_upgrade_helm_release_and_wait
   except:
     refs:
       - tags
