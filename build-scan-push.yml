@@ -86,14 +86,21 @@ build-scan-push:
     - |
       # make sure there is a tmp directory for trivy
       mkdir -p /tmp
+      # define default trivy options
+      TRIVY_OPTIONS="\
+        --db-repository mirror.teuto.net/ghcr.io/aquasecurity/trivy-db:2 \
+        --java-db-repository mirror.teuto.net/ghcr.io/aquasecurity/trivy-java-db:1 \
+        --ignorefile $IMAGE_DIR/.trivyignore \
+        --cache-dir $CI_PROJECT_DIR/.cache/trivy \
+        --no-progress"
       # Build report
-      trivy image --ignorefile $IMAGE_DIR/.trivyignore --exit-code 0 --cache-dir $CI_PROJECT_DIR/.cache/trivy --no-progress --format json -o scanning-report-$IMAGE_NAME${VARIANT+-$VARIANT}.json --input $IMAGE_NAME${VARIANT+-$VARIANT}.tar
+      trivy image $TRIVY_OPTIONS --exit-code 0 --format json -o scanning-report-$IMAGE_NAME${VARIANT+-$VARIANT}.json --input $IMAGE_NAME${VARIANT+-$VARIANT}.tar
       # Print report
-      trivy image --ignorefile $IMAGE_DIR/.trivyignore --exit-code 0 --cache-dir $CI_PROJECT_DIR/.cache/trivy --no-progress --severity HIGH,CRITICAL --input $IMAGE_NAME${VARIANT+-$VARIANT}.tar
+      trivy image $TRIVY_OPTIONS --exit-code 0 --severity HIGH,CRITICAL --input $IMAGE_NAME${VARIANT+-$VARIANT}.tar
       # Report severe vulnerabilities for non MRs
       # fail only on non MRs
       if [ -z "$CI_MERGE_REQUEST_IID" ]; then
-        trivy image --ignorefile $IMAGE_DIR/.trivyignore --exit-code 1 --cache-dir $CI_PROJECT_DIR/.cache/trivy --severity CRITICAL --no-progress --input $IMAGE_NAME${VARIANT+-$VARIANT}.tar
+        trivy image $TRIVY_OPTIONS --exit-code 1 --severity CRITICAL --input $IMAGE_NAME${VARIANT+-$VARIANT}.tar
       fi
     # step 3: upload the image
     - crane auth login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
