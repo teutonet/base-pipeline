@@ -51,6 +51,7 @@ deployment:start:feature:
   variables:
     KUBE_NAMESPACE: $KUBE_NAMESPACE_FEATURE
     INGRESS_BASE_URL: $CI_COMMIT_REF_SLUG.$CI_PROJECT_NAME.dev.teuto.dev
+    PERFORM_UPGRADE_TEST: "1"
     RELEASE_NAME: "feature"
   before_script:
     - kubectl create namespace $KUBE_NAMESPACE || true
@@ -58,15 +59,21 @@ deployment:start:feature:
     - *deploy_functions
     - |
       setup_gpg_agent
-      git fetch origin $CI_MERGE_REQUEST_DIFF_BASE_SHA
-      git worktree add .git/worktree/merge-base $CI_MERGE_REQUEST_DIFF_BASE_SHA
-      cd .git/worktree/merge-base
-      export VERSION=$CI_DEFAULT_BRANCH-$CI_MERGE_REQUEST_DIFF_BASE_SHA
-      echo "rolling out main branch deployment: $VERSION"
-      install_upgrade_helm_release_and_wait
-      cd -
-      export VERSION=$CI_COMMIT_SHA
-      echo "main branch rolled out, upgrading with feature deployment: $VERSION"
+      if [ "$PERFORM_UPGRADE_TEST" -eq 1 ]; then
+        git config --global --add safe.directory $CI_PROJECT_DIR
+        git fetch origin $CI_MERGE_REQUEST_DIFF_BASE_SHA
+        git worktree add .git/worktree/merge-base $CI_MERGE_REQUEST_DIFF_BASE_SHA
+        cd .git/worktree/merge-base
+        export VERSION=$CI_DEFAULT_BRANCH-$CI_MERGE_REQUEST_DIFF_BASE_SHA
+        echo "rolling out main branch deployment: $VERSION"
+        install_upgrade_helm_release_and_wait
+        cd -
+        export VERSION=$CI_COMMIT_SHA
+        echo "main branch rolled out, upgrading with feature deployment: $VERSION"
+      else
+        export VERSION=$CI_COMMIT_SHA
+        echo "installing with feature deployment: $VERSION"
+      fi
       install_upgrade_helm_release_and_wait
   except:
     refs:
