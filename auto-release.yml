@@ -12,7 +12,7 @@ create-release:
     - |
       if [ -z $VERSION ]; then
         # get latest release
-        json_data=$(wget -O - --header="JOB-TOKEN: ${CI_JOB_TOKEN}" "https://tickets.teuto.net/api/v4/projects/${CI_PROJECT_ID}/releases/permalink/latest")
+        json_data=$(wget -O - --header="JOB-TOKEN: ${CI_JOB_TOKEN}" "${CI_SERVER_URL}/api/v4/projects/${CI_PROJECT_ID}/releases/permalink/latest")
         # get latest tag name from json
         current_version_string=$(echo "$json_data" | grep -o "\"tag_name\": *\"[^\"]*" | cut -d"\"" -f4)
         echo "current version $current_version_string"
@@ -33,7 +33,7 @@ create-release:
       fi
     - CHANGELOG=$(git-cliff -r . --tag ${VERSION} -u)
     # create release with release-cli because ci-keywords cant use env vars from script
-    - release-cli --server-url https://$CI_SERVER_HOST --job-token=$CI_JOB_TOKEN --project-id $CI_PROJECT_ID create --name "Release ${VERSION}" --tag-name ${VERSION} --ref $CI_COMMIT_SHA --description "$CHANGELOG"
+    - release-cli --server-url ${CI_SERVER_URL} --job-token=$CI_JOB_TOKEN --project-id $CI_PROJECT_ID create --name "Release ${VERSION}" --tag-name ${VERSION} --ref $CI_COMMIT_SHA --description "$CHANGELOG"
   only:
     refs:
       - main
