@@ -47,11 +47,11 @@ build-scan-push:
       if [ -n "$CI_COMMIT_TAG" ]; then
         EXTRA_TAGS="$CI_COMMIT_TAG"
       fi
-    # step 1: build the image
-    - echo "{\"auths\":{\"${CI_REGISTRY}\":{\"auth\":\"$(printf "%s:%s" "${CI_REGISTRY_USER}" "${CI_REGISTRY_PASSWORD}" | base64 | tr -d '\n')\"}}}" > /kaniko/.docker/config.json
+      ALL_TAGS="$CI_COMMIT_SHA $EXTRA_TAGS"
+    - crane auth login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
     - |
       destination_args="--tar-path=$IMAGE_NAME${VARIANT+-$VARIANT}.tar"
-      for tag in $CI_COMMIT_SHA $EXTRA_TAGS
+      for tag in $ALL_TAGS
       do
         destination_args="$destination_args --destination $CI_REGISTRY_IMAGE/$IMAGE_NAME${VARIANT+-$VARIANT}:$tag"
       done
@@ -61,6 +61,21 @@ build-scan-push:
       fi
 
       BUILD_CONTEXT=${IMAGE_DIR}
+    # step 0: if MR and image+pipeline unchanged, just re-tag it and exit
+    - |
+      if [[ -n "$CI_MERGE_REQUEST_DIFF_BASE_SHA" && -z "$(git log $CI_MERGE_REQUEST_DIFF_BASE_SHA..HEAD -1 --format=%H -- "$BUILD_CONTEXT" "$CI_CONFIG_PATH")" ]]
+      then
+        echo "No changes for $BUILD_CONTEXT in this MR"
+
+        for tag in $ALL_TAGS
+        do
+          crane tag "$CI_REGISTRY_IMAGE/$IMAGE_NAME${VARIANT+-$VARIANT}:$CI_MERGE_REQUEST_DIFF_BASE_SHA" "$tag"
+        done
+
+        exit 0
+      fi
+    # step 1: build the image
+    - echo "{\"auths\":{\"${CI_REGISTRY}\":{\"auth\":\"$(printf "%s:%s" "${CI_REGISTRY_USER}" "${CI_REGISTRY_PASSWORD}" | base64 | tr -d '\n')\"}}}" > /kaniko/.docker/config.json
 
     - echo "build image with name '$IMAGE_NAME' in directory '$BUILD_CONTEXT'"
 
@@ -103,12 +118,12 @@ build-scan-push:
         trivy image $TRIVY_OPTIONS --exit-code 1 --severity CRITICAL --input $IMAGE_NAME${VARIANT+-$VARIANT}.tar
       fi
     # step 3: upload the image
-    - crane auth login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
     - |
-      for tag in $CI_COMMIT_SHA $EXTRA_TAGS
+      for tag in $ALL_TAGS
       do
         crane push "$IMAGE_NAME${VARIANT+-$VARIANT}.tar" "$CI_REGISTRY_IMAGE/$IMAGE_NAME${VARIANT+-$VARIANT}:$tag"
       done
+
   artifacts:
     when: always
     name: "scan-report"
@@ -131,7 +146,7 @@ vulnerability-guard:
   image: ${REGISTRY_MIRROR}badouralix/curl-jq:alpine@sha256:a627689c72d87ace6c7f276d0971c6c3200d93b7ba18b88e002ada7ae62bc105
   script:
     - | 
-        for report in scanning-report-*.json
+        for report in $(find . -maxdepth 1 -name "scanning-report-*.json")
         do
           echo "checking $report"
           cat "$report" | jq -e '[.Results[]?.Vulnerabilities[]?.Severity] | contains(["CRITICAL"]) | not'
