@@ -69,7 +69,13 @@ build-scan-push:
 
         for tag in $ALL_TAGS
         do
-          crane tag "$CI_REGISTRY_IMAGE/$IMAGE_NAME${VARIANT+-$VARIANT}:$CI_MERGE_REQUEST_DIFF_BASE_SHA" "$tag"
+          s=10
+          until crane tag "$CI_REGISTRY_IMAGE/$IMAGE_NAME${VARIANT+-$VARIANT}:$CI_MERGE_REQUEST_DIFF_BASE_SHA" "$tag"
+          do
+            [[ $s -lt 3600 ]]
+            sleep $s
+            s=$(( s * 2 ))
+          done
         done
 
         exit 0
