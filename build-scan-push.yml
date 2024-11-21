@@ -63,22 +63,28 @@ build-scan-push:
       BUILD_CONTEXT=${IMAGE_DIR}
     # step 0: if MR and image+pipeline unchanged, just re-tag it and exit
     - |
-      if [[ -n "$CI_MERGE_REQUEST_DIFF_BASE_SHA" && -z "$(git log $CI_MERGE_REQUEST_DIFF_BASE_SHA..HEAD -1 --format=%H -- "$BUILD_CONTEXT" "$CI_CONFIG_PATH")" ]]
+      if [[ -n "$CI_MERGE_REQUEST_DIFF_BASE_SHA" ]]
       then
-        echo "No changes for $BUILD_CONTEXT in this MR"
+        git config --add safe.directory $CI_PROJECT_DIR
+        git worktree add .git/worktree/merge-base $CI_MERGE_REQUEST_DIFF_BASE_SHA
 
-        for tag in $ALL_TAGS
-        do
-          s=10
-          until crane tag "$CI_REGISTRY_IMAGE/$IMAGE_NAME${VARIANT+-$VARIANT}:$CI_MERGE_REQUEST_DIFF_BASE_SHA" "$tag"
+        if diff -qr "$BUILD_CONTEXT" ".git/worktree/merge-base/$BUILD_CONTEXT" &> /dev/null && diff -qr "$CI_CONFIG_PATH" ".git/worktree/merge-base/$CI_CONFIG_PATH" &> /dev/null
+        then
+          echo "No changes for $BUILD_CONTEXT in this MR"
+
+          for tag in $ALL_TAGS
           do
-            [[ $s -lt 3600 ]]
-            sleep $s
-            s=$(( s * 2 ))
+            s=10
+            until crane tag "$CI_REGISTRY_IMAGE/$IMAGE_NAME${VARIANT+-$VARIANT}:$CI_MERGE_REQUEST_DIFF_BASE_SHA" "$tag"
+            do
+              [[ $s -lt 3600 ]]
+              sleep $s
+              s=$(( s * 2 ))
+            done
           done
-        done
 
-        exit 0
+          exit 0
+        fi
       fi
     # step 1: build the image
     - echo "{\"auths\":{\"${CI_REGISTRY}\":{\"auth\":\"$(printf "%s:%s" "${CI_REGISTRY_USER}" "${CI_REGISTRY_PASSWORD}" | base64 | tr -d '\n')\"}}}" > /kaniko/.docker/config.json
