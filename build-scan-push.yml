@@ -66,6 +66,7 @@ build-scan-push:
       if [[ -n "$CI_MERGE_REQUEST_DIFF_BASE_SHA" ]]
       then
         git config --add safe.directory $CI_PROJECT_DIR
+        git worktree remove .git/worktree/merge-base || true
         git worktree add .git/worktree/merge-base $CI_MERGE_REQUEST_DIFF_BASE_SHA
 
         if diff -qr "$BUILD_CONTEXT" ".git/worktree/merge-base/$BUILD_CONTEXT" &> /dev/null && diff -qr "$CI_CONFIG_PATH" ".git/worktree/merge-base/$CI_CONFIG_PATH" &> /dev/null
