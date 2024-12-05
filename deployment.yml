@@ -28,12 +28,18 @@ variables:
         helm upgrade --install -n $KUBE_NAMESPACE $RELEASE_NAME $CHART_PATH --wait \
           $HELM_ARGS $(for v in $HELM_VERSION_ARGS; do echo --set "$v=$VERSION"; done)
         echo "waiting for helm releases"
-        while helm list -q -n $KUBE_NAMESPACE --failed --pending | grep '^'
+        while kubectl get hr -n $KUBE_NAMESPACE -o json | jq -r '.items.[] | select(.status.conditions | any(.status != "True")) | .metadata.name' | grep '^'
         do
           sleep 5
         done
         echo "waiting for pods"
-        while kubectl -n $KUBE_NAMESPACE get pods --field-selector=status.phase!=Succeeded -o go-template='{{range $index, $element := .items}}{{range .status.containerStatuses}}{{if not .ready}}{{$element.metadata.name}}{{"\n"}}{{end}}{{end}}{{end}}' | grep '^'
+        # pods from jobs can fail, as long as the job itself succeeds
+        while kubectl get pod -n $KUBE_NAMESPACE -o json | jq -r '.items.[] | select((.metadata.ownerReferences | all(.kind != "Job")) and (.status.containerStatuses | any(.ready | not))) | .metadata.name' | grep '^'
+        do
+          sleep 5
+        done
+        echo "waiting for jobs"
+        while kubectl get jobs -n $KUBE_NAMESPACE -o json | jq -r '.items.[] | select(.status.succeeded != 1) | .metadata.name' | grep '^'
         do
           sleep 5
         done
