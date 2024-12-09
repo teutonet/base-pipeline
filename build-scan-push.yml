@@ -41,6 +41,28 @@ build-scan-push:
     - fetch-version
   script:
     - |
+      if [ -z "$IMAGE_DIR" ] && [ "$IMAGE_NAME" != "$CI_PROJECT_NAME" ]; then
+        IMAGE_DIR=$IMAGE_NAME
+      fi
+    - |
+      # run before-build-scan-push script if present
+      cd $IMAGE_DIR
+
+      SCRIPT_FILE_NAME="before-build-scan-push"
+
+      if [ -f "$SCRIPT_FILE_NAME" ]; then
+        echo "execute located script before-build-scan-push: $IMAGE_DIR/$SCRIPT_FILE_NAME"
+        sh -x $SCRIPT_FILE_NAME
+        if [ $? -ne 0 ]; then
+          echo "error while executing before-build-scan-push"
+          exit 1
+        fi
+      else
+        echo "no before-build scan push script found: $IMAGE_DIR/$SCRIPT_FILE_NAME"
+      fi
+
+      cd $CI_PROJECT_DIR
+    - |
       if [ "$CI_COMMIT_BRANCH" == "$CI_DEFAULT_BRANCH" ]; then
         EXTRA_TAGS="$CI_DEFAULT_BRANCH-$CI_COMMIT_SHA latest"
       fi
@@ -55,10 +77,6 @@ build-scan-push:
       do
         destination_args="$destination_args --destination $CI_REGISTRY_IMAGE/$IMAGE_NAME${VARIANT+-$VARIANT}:$tag"
       done
-
-      if [ -z "$IMAGE_DIR" ] && [ "$IMAGE_NAME" != "$CI_PROJECT_NAME" ]; then
-        IMAGE_DIR=$IMAGE_NAME
-      fi
 
       BUILD_CONTEXT=${IMAGE_DIR}
     # step 0: if MR and image+pipeline unchanged, just re-tag it and exit
