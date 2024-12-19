@@ -136,9 +136,12 @@ build-scan-push:
       TRIVY_OPTIONS="\
         --db-repository mirror.teuto.net/ghcr.io/aquasecurity/trivy-db:2 \
         --java-db-repository mirror.teuto.net/ghcr.io/aquasecurity/trivy-java-db:1 \
-        --ignorefile $IMAGE_DIR/.trivyignore \
         --cache-dir $CI_PROJECT_DIR/.cache/trivy \
         --no-progress"
+      if [ -f "$IMAGE_DIR/.trivyignore" ]
+      then
+        TRIVY_OPTIONS="$TRIVY_OPTIONS --ignorefile $IMAGE_DIR/.trivyignore"
+      fi
       # Build report
       trivy image $TRIVY_OPTIONS --exit-code 0 --format json -o scanning-report-$IMAGE_NAME${VARIANT+-$VARIANT}.json --input $IMAGE_NAME${VARIANT+-$VARIANT}.tar
       # Print report
