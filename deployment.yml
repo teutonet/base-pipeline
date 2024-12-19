@@ -65,7 +65,8 @@ deployment:start:feature:
     - *deploy_functions
     - |
       setup_gpg_agent
-      if [ "$PERFORM_UPGRADE_TEST" -eq 1 ]; then
+      # if main is broken, "git commit --trailer=skip-upgrade-test=true" can be used to skip upgrade tests for that MR
+      if [ "$PERFORM_UPGRADE_TEST" -eq 1 ] && [ "$(git log -1 --format='%(trailers:key=skip-upgrade-test,valueonly)')" != "true" ]; then
         git config --global --add safe.directory $CI_PROJECT_DIR
         git fetch origin $CI_MERGE_REQUEST_DIFF_BASE_SHA
         git worktree add .git/worktree/merge-base $CI_MERGE_REQUEST_DIFF_BASE_SHA
