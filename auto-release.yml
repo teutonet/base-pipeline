@@ -1,6 +1,9 @@
+variables:
+  PIPELINE_IMAGE_VERSION: latest
+
 create-release:
   image:
-    name: tickets.teuto.net:5050/teuto-public/base-pipeline/release-tools:latest
+    name: tickets.teuto.net:5050/teuto-public/base-pipeline/release-tools:$PIPELINE_IMAGE_VERSION
     entrypoint: [""]
   when: manual
   stage: deploy
