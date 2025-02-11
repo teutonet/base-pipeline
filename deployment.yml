@@ -29,7 +29,8 @@ variables:
         helm upgrade --install -n $KUBE_NAMESPACE $RELEASE_NAME $CHART_PATH --wait \
           $HELM_ARGS $(for v in $HELM_VERSION_ARGS; do echo --set "$v=$VERSION"; done)
         echo "waiting for helm releases"
-        while kubectl get hr -n $KUBE_NAMESPACE -o json | jq -r '.items.[] | select(.status.conditions | any(.status != "True")) | .metadata.name' | grep '^'
+        # flux reconcile can fail if a HelmRelease is deleted, in that case just retry
+        while ! kubectl get hr -n $KUBE_NAMESPACE -o json | jq -r '.items.[].metadata.name' | xargs -n 1 flux reconcile -n $KUBE_NAMESPACE helmrelease
         do
           sleep 5
         done
