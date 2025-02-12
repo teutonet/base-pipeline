@@ -3,10 +3,11 @@ variables:
   KUBE_NAMESPACE_STAGING: $CI_PROJECT_NAME
   KUBE_NAMESPACE_PRODUCTION: $CI_PROJECT_NAME
   CHART_PATH: charts/$CI_PROJECT_NAME
+  PIPELINE_IMAGE_VERSION: latest
 
 .deployment-base:
   stage: deploy
-  image: tickets.teuto.net:5050/teuto-public/base-pipeline/base-pipeline:latest
+  image: tickets.teuto.net:5050/teuto-public/base-pipeline/base-pipeline:$PIPELINE_IMAGE_VERSION
   variables:
     SHELL: /bin/bash
     VERSION: $CI_COMMIT_SHA
@@ -119,7 +120,7 @@ deployment:start:prod:
     on_stop: "deployment:stop-manual:production"
 
 .deployment-base:stop:
-  image: tickets.teuto.net:5050/teuto-public/base-pipeline/base-pipeline:latest
+  image: tickets.teuto.net:5050/teuto-public/base-pipeline/base-pipeline:$PIPELINE_IMAGE_VERSION
   stage: deploy-stop
   variables:
     RELEASE_NAME: $CI_ENVIRONMENT_NAME

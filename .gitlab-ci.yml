@@ -22,6 +22,5 @@ self-test:
   stage: test
   needs:
     - build-scan-push
-  image:
-    name: $CI_REGISTRY_IMAGE/kaniko-trivy:$CI_COMMIT_SHA
-    entrypoint: [""]
+  variables:
+    PIPELINE_IMAGE_VERSION: $CI_COMMIT_SHA
