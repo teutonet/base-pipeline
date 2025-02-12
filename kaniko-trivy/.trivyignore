@@ -4,3 +4,5 @@ CVE-2024-45337
 
 # Docker authz plugins are not used
 CVE-2024-41110
+
+CVE-2025-21613
