@@ -30,7 +30,7 @@ variables:
           $HELM_ARGS $(for v in $HELM_VERSION_ARGS; do echo --set "$v=$VERSION"; done)
         echo "waiting for helm releases"
         # flux reconcile can fail if a HelmRelease is deleted, in that case just retry
-        while ! kubectl get hr -n $KUBE_NAMESPACE -o json | jq -r '.items.[].metadata.name' | xargs -n 1 flux reconcile -n $KUBE_NAMESPACE helmrelease
+        while ! kubectl get hr -n $KUBE_NAMESPACE -o jsonpath='{.items[*].metadata.name}' | xargs --no-run-if-empty -n 1 flux reconcile -n $KUBE_NAMESPACE helmrelease
         do
           sleep 5
         done
