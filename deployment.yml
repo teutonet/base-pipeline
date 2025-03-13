@@ -16,10 +16,16 @@ variables:
     - &deploy_functions |
       setup_gpg_agent () {
         # check for GPG private key
-        if [ -z "$GPG_PRIV_KEY" ]; then
-          echo "no GPG_PRIV_KEY given!!!"
+        if [ -z "$GPG_PRIV_KEY_FILE" ]; then
+          if [ -z "$GPG_PRIV_KEY" ]; then
+            echo "neither GPG_PRIV_KEY_FILE nor GPG_PRIV_KEY given!!!"
+          else
+            echo "using GPG_PRIV_KEY"
+            gpg --import <(echo "$GPG_PRIV_KEY" | tr -d '\r')
+          fi
         else
-          gpg --import <(echo "$GPG_PRIV_KEY" | tr -d '\r')
+          echo "using GPG_PRIV_KEY_FILE"
+          gpg --import "$GPG_PRIV_KEY_FILE"
         fi
         # start GPG agent
         eval $(gpg-agent --daemon -s)
