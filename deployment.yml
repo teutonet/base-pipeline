@@ -77,6 +77,7 @@ deployment:start:feature:
       if [ "$PERFORM_UPGRADE_TEST" -eq 1 ] && [ "$(git log -1 --format='%(trailers:key=skip-upgrade-test,valueonly)')" != "true" ]; then
         git config --global --add safe.directory $CI_PROJECT_DIR
         git fetch origin $CI_MERGE_REQUEST_DIFF_BASE_SHA
+        git worktree remove .git/worktree/merge-base || true
         git worktree add .git/worktree/merge-base $CI_MERGE_REQUEST_DIFF_BASE_SHA
         cd .git/worktree/merge-base
         export VERSION=$CI_DEFAULT_BRANCH-$CI_MERGE_REQUEST_DIFF_BASE_SHA
