@@ -6,15 +6,15 @@ Reliable and consistent deployments are crucial for ensuring high software quali
 
 To facilitate this, we manage our projects within a single Git repository (Monorepo). This approach allows us to version all components simultaneously.
 
-Under the term "Web Platform," we include not only the frontend and backend but also all additional resources necessary for operation, particularly the required databases.
+Under the term **web platform** we include not only the frontend and backend but also all additional resources necessary for operation, particularly the required databases.
 
 The web platform is always treated as a unified entity, allowing all processes—local development, quality checks, and updates—to be executed simultaneously for all components.
 
 Each code change automatically triggers an end-to-end integration test. To perform these tests, we implement a complete deployment of the platform, including provisioning of test data, within the base pipeline.
 
-Using Playwright (https://playwright.dev/, a superior alternative to Selenium), critical frontend paths and features are automatically tested, and the status of these end-to-end tests is documented in the pipeline.
+Using [Playwright](https://playwright.dev/) *(a superior alternative to Selenium)*, critical frontend paths and features are automatically tested, and the status of these end-to-end tests is documented in the pipeline.
 
-We utilize a multi-stage configuration mechanism based on Kubernetes Helm templating for configuring platform components and their environments. If credentials need to be stored, we use the encryption mechanism "SOPS."
+We utilize a multi-stage configuration mechanism based on Kubernetes Helm templating for configuring platform components and their environments. If credentials need to be stored, we use encryption via **[SOPS](https://github.com/getsops/sops)**.
 
 The Kubernetes operations team supports configuring and operating databases and deployments, as well as maintaining the installation script for the local Minikube environment on developer workstations.
 
@@ -27,18 +27,19 @@ In the initial phase, multiple parallel branches and merge requests often exist.
 1. Developer implements changes in a local Kubernetes environment (Minikube).
 2. Pre-commit checks, such as validating "Conventional Commit Messages" using [https://github.com/siderolabs/conform](https://github.com/siderolabs/conform).
 3. Developer commits new code and creates a merge request.
-4. Pipeline deployment into a new **Feature Environment**.
-5. Execution of an end-to-end test via the pipeline.
+4. Pipeline deployment into a new **feature environment**.
+5. Perform an upgrade test from main version to feature version
+6. Execution of an end-to-end test via the pipeline.
 
 #### Phase B: Integration into Staging and Production Release
 
-6. Approval of the merge request by another developer and, if necessary, a security officer.
-7. Deployment to the **Staging Environment**.
-8. Repeated automated end-to-end testing.
-9. Final manual review of the staging environment by the product owner.
-10. Creation of a release tag by the product owner.
-11. Automatic update of release notes documentation with newly integrated features extracted from commit logs.
-12. Deployment of the release into the **Production Environment**.
+7. Approval of the merge request by another developer and, if necessary, a security officer.
+8. Merge of the merge request after all criterias *(approvals, successful pipeline and e2e-tests)* are met
+9. Deployment to the **staging environment**.
+10. Final manual review of the staging environment by the product owner.
+11. Product owner initiates the automated release process.
+12. Automatically generates a tag and a release with release notes, incorporating new features extracted from commit logs.
+13. Deployment of the release into the **production environment**.
 
 This schematic description provides an overview of the functionality. Numerous minor features have been integrated into this pipeline process over the past three years through a continuous improvement process.
 
