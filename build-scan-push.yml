@@ -183,11 +183,22 @@ vulnerability-guard:
   image: ${REGISTRY_MIRROR}badouralix/curl-jq:alpine@sha256:a627689c72d87ace6c7f276d0971c6c3200d93b7ba18b88e002ada7ae62bc105
   script:
     - | 
+        FAIL=0
         for report in $(find . -maxdepth 1 -name "scanning-report-*.json")
         do
-          echo "checking $report"
-          cat "$report" | jq -e '[.Results[]?.Vulnerabilities[]?.Severity] | contains(["CRITICAL"]) | not'
+          echo -n "checking $report ..."
+          RESULT=$(cat "$report" | jq -e '[.Results[]?.Vulnerabilities[]?.Severity] | contains(["CRITICAL"]) | not')
+          if [ "$RESULT" = "true" ]; then
+            echo " ✅"
+          else
+            echo " ❌"
+            FAIL=1
+          fi
         done
+        if [ "$FAIL" -eq 1 ]; then
+          echo "critical CVEs found, failing!"
+          exit 1
+        fi
   rules:
     - if: $CI_MERGE_REQUEST_IID
       allow_failure: true
