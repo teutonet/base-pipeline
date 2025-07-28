@@ -4,7 +4,7 @@ ARG REGISTRY_MIRROR="" \
     USER_ID=1000 \
     GROUP_ID=1000
 
-# renovate: datasource=github-tags depName=kubernetes/kubectl
+# renovate: datasource=github-tags depName=kubernetes/kubernetes
 ARG KUBECTL_VERSION=v1.24.7
 # renovate: datasource=github-tags depName=helm/helm
 ARG HELM_VERSION=v3.16.4
