@@ -4,20 +4,20 @@ ARG REGISTRY_MIRROR="" \
     USER_ID=1000 \
     GROUP_ID=1000
 
-# renovate: datasource=github-tags depName=kubernetes/kubectl
-ARG KUBECTL_VERSION=v1.24.7
+# renovate: datasource=github-tags depName=kubernetes/kubernetes
+ARG KUBECTL_VERSION=v1.33.3
 # renovate: datasource=github-tags depName=helm/helm
-ARG HELM_VERSION=v3.16.4
+ARG HELM_VERSION=v3.18.4
 # renovate: datasource=github-tags depName=mozilla/sops
-ARG SOPS_VERSION=v3.9.2
+ARG SOPS_VERSION=v3.10.2
 # renovate: datasource=github-tags depName=mikefarah/yq
-ARG YQ_VERSION=v4.44.6
+ARG YQ_VERSION=v4.47.1
 # renovate: datasource=github-tags depName=grafana/tanka
-ARG TANKA_VERSION=v0.31.0
+ARG TANKA_VERSION=v0.33.0
 
 
-FROM ${REGISTRY_MIRROR}fluxcd/flux-cli:v2.4.0 as flux
-FROM ${REGISTRY_MIRROR_LIB}alpine:3.21 AS base
+FROM ${REGISTRY_MIRROR}fluxcd/flux-cli:v2.6.4 as flux
+FROM ${REGISTRY_MIRROR_LIB}alpine:3.22 AS base
 
 LABEL maintainer="oc@teuto.net"
 LABEL tools="kubectl,sops,tanka,flux,envsubst,docker,helm,yq,jq"
