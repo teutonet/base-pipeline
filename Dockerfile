@@ -60,16 +60,16 @@ ARG HELM_VERSION \
 
 WORKDIR /usr/local/bin
 
-RUN curl -LO https://storage.googleapis.com/kubernetes-release/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl && \
+RUN curl -fLO https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl && \
    chmod +x kubectl && \
-  curl -sSL https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz | tar xz && \
-  curl -sL https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64 -o /usr/local/bin/yq && \
+  curl -sfSL https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz | tar xz && \
+  curl -sfL https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64 -o /usr/local/bin/yq && \
   chmod +x /usr/local/bin/yq && \
-  curl -sL https://github.com/stedolan/jq/releases/latest/download/jq-linux64 -o /usr/local/bin/jq && \ 
+  curl -sfL https://github.com/stedolan/jq/releases/latest/download/jq-linux64 -o /usr/local/bin/jq && \ 
   chmod +x /usr/local/bin/jq && \
   curl -fSL -o "/usr/local/bin/tk" "https://github.com/grafana/tanka/releases/download/${TANKA_VERSION}/tk-linux-amd64" && \
   chmod a+x "/usr/local/bin/tk" && \
-  curl -LO https://github.com/mozilla/sops/releases/download/${SOPS_VERSION}/sops-${SOPS_VERSION}.linux.amd64 && \
+  curl -fLO https://github.com/mozilla/sops/releases/download/${SOPS_VERSION}/sops-${SOPS_VERSION}.linux.amd64 && \
   mv sops-${SOPS_VERSION}.linux.amd64 sops && \
   chmod a+x sops
 
