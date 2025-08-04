@@ -20,7 +20,7 @@ variables:
   PIPELINE_IMAGE_VERSION: latest
 
 fetch-version:
-  image: ${REGISTRY_MIRROR}bitnami/git:2.42.0-debian-11-r41
+  image: ${REGISTRY_MIRROR}bitnamilegacy/git:2.42.0-debian-11-r41
   stage: build
   variables:
     GIT_DEPTH: "0"
