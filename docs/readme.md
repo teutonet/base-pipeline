@@ -45,3 +45,11 @@ This schematic description provides an overview of the functionality. Numerous m
 
 
 ![Diagram Base Pipeline](base-pipeline.svg)
+
+### Troubleshooting
+
+#### Pipeline stuck/deployment failing
+
+The pipeline can potentially get stuck if previously the images couldn't be built on the main branch and the pipeline couldn't run on the main branch either. In that case, feature pipelines will also get stuck, because as described in the diagram above, the latest main will be installed in feature pipelines before they're updated with the feature branch, and if main fails, this will also fail.
+
+Should that occur, pipelines for a fix for the problem that caused main to fail can run without installing main first by adding `--trailer=skip-upgrade-test=true` to the commit command. This will then allow the pipeline of the fix MR to run and thus allow main to be fixed.
