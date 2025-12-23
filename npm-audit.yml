@@ -1,0 +1,97 @@
+variables:
+  NPM_AUDIT_LEVEL: critical
+  ALLOW_NPM_AUDIT_TO_FAIL: "0"
+
+npm-audit:
+  stage: .pre
+  image: ${REGISTRY_MIRROR_LIB}node:25-alpine3.21
+  before_script:
+    - |
+      function audit_pkgs {
+          PROJECT_DIR=$1
+          PKGS=$2
+          NPM_BINARY=${3:-npm}
+          NPM_AUDIT_OPTIONS="--audit-level=$NPM_AUDIT_LEVEL"
+          RC=0
+
+          if [ $NPM_BINARY == "npm" ]; then
+            NPM_AUDIT_OPTIONS="$NPM_AUDIT_OPTIONS --package-lock-only"
+          fi
+
+          for NPM_PKG in $PKGS; do
+              NPM_DIR="${PROJECT_DIR}/$(dirname $NPM_PKG)"
+              echo "$NPM_BINARY audit $NPM_DIR ..."
+              #pushd .
+              cd $NPM_DIR
+              $NPM_BINARY audit $NPM_AUDIT_OPTIONS
+              RESULT=$?
+              if [ $RESULT -eq 0 ]; then
+                  echo "✅ $NPM_BINARY audit $NPM_PKG successful"
+              else
+                  echo "❌ $NPM_BINARY audit $NPM_PKG failed"
+                  RC=1
+              fi
+              cd $PROJECT_DIR
+          done
+          return $RC
+      }
+  script:
+    - |
+      PROJECT_DIR=$CI_PROJECT_DIR
+
+      # npm projects
+      NPM_PKGS=$(find . -type f -name package-lock.json)
+      # pnpm projects
+      PNPM_PKGS=$(find . -type f -name pnpm-lock.yaml)
+
+      if [[ -z "$NPM_PKGS" && -z "$PNPM_PKGS" ]]; then
+          echo "no npm/pnpm packages found, nothing todo!"
+          exit 0
+      fi
+
+      FAIL=0
+      RC=0
+
+      if [ -n "$NPM_PKGS" ]; then
+          audit_pkgs "$PROJECT_DIR" "$NPM_PKGS"
+          RC=$?
+          if [ $RC -ne 0 ]; then
+              FAIL=1
+          fi
+      fi
+
+      if [ -n "$PNPM_PKGS" ]; then
+          echo "installing pnpm ..."
+          npm install -g pnpm
+          echo "installed pnpm!"
+          audit_pkgs "$PROJECT_DIR" "$PNPM_PKGS" "pnpm"
+          RC=$?
+          if [ $RC -ne 0 ]; then
+              FAIL=1
+          fi
+      fi
+
+      if [ $FAIL -ne 0 ]; then
+          echo "⚠️ npm audit failed ( severity = ${NPM_AUDIT_LEVEL} )"
+      else
+          echo "✅ npm audit successful ( severity = ${NPM_AUDIT_LEVEL} )"
+          exit 0
+      fi
+
+      # if npm-audit fails in case of an unfixed CVEs
+      #   git commit --trailer=allow-npm-audit-to-fail=true
+      # can be used to succeed the npm audit job
+      # BUT IT SHOULD BE USED WITH CARE !!!!
+      ALLOW_NPM_AUDIT_FAIL_COMMIT_TRAIL=$(echo $CI_COMMIT_MESSAGE | grep -o -E 'allow-npm-audit-to-fail: (.+)' | awk -F': ' '{print $2}')
+      if [ "$ALLOW_NPM_AUDIT_TO_FAIL" -eq 0 ] && [ "$ALLOW_NPM_AUDIT_FAIL_COMMIT_TRAIL" != "true" ]; then
+        exit $FAIL
+      else
+        # return success in case npm audit is allowed to fail
+        echo "⚠️ npm audit failed, but continuing because ALLOW_NPM_AUDIT_TO_FAIL=${ALLOW_NPM_AUDIT_TO_FAIL} or commit trail allow-npm-audit-to-fail=${ALLOW_NPM_AUDIT_FAIL_COMMIT_TRAIL} was set"
+        echo "⚠️ Security vulnerabilities detected! Address them ASAP."
+        exit 0
+      fi
+  rules:
+    - exists:
+        - "**/package-lock.json"
+        - "**/pnpm-lock.yaml"
