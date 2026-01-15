@@ -31,9 +31,11 @@ variables:
         eval $(gpg-agent --daemon -s)
       }
       install_upgrade_helm_release_and_wait () {
+        set -x
         helm dependency update $CHART_PATH
         helm upgrade --install -n $KUBE_NAMESPACE $RELEASE_NAME $CHART_PATH --wait \
           $HELM_ARGS $(for v in $HELM_VERSION_ARGS; do echo --set "$v=$VERSION"; done)
+        set +x
         echo "waiting for helm releases"
         # flux reconcile can fail if a HelmRelease is deleted, in that case just retry
         while ! kubectl get hr -n $KUBE_NAMESPACE -o jsonpath='{.items[*].metadata.name}' | xargs --no-run-if-empty -n 1 flux reconcile -n $KUBE_NAMESPACE helmrelease
