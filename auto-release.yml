@@ -37,6 +37,5 @@ create-release:
     - CHANGELOG=$(git-cliff -r . --tag ${VERSION} -u)
     # create release with release-cli because ci-keywords cant use env vars from script
     - release-cli --server-url ${CI_SERVER_URL} --job-token=$CI_JOB_TOKEN --project-id $CI_PROJECT_ID create --name "Release ${VERSION}" --tag-name ${VERSION} --ref $CI_COMMIT_SHA --description "$CHANGELOG"
-  only:
-    refs:
-      - main
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
