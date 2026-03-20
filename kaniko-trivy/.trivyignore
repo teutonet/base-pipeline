@@ -1,6 +1,10 @@
 # go stdlib CVEs
 CVE-2024-24790
 CVE-2024-45337
+CVE-2025-68121
+
+# no GRPC server
+CVE-2026-33186
 
 # Docker authz plugins are not used
 CVE-2024-41110

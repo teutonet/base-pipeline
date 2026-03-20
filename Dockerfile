@@ -5,19 +5,19 @@ ARG REGISTRY_MIRROR="" \
     GROUP_ID=1000
 
 # renovate: datasource=github-tags depName=kubernetes/kubernetes
-ARG KUBECTL_VERSION=v1.33.3
+ARG KUBECTL_VERSION=v1.35.3
 # renovate: datasource=github-tags depName=helm/helm
-ARG HELM_VERSION=v3.18.4
+ARG HELM_VERSION=v3.20.1
 # renovate: datasource=github-tags depName=mozilla/sops
-ARG SOPS_VERSION=v3.10.2
+ARG SOPS_VERSION=v3.12.2
 # renovate: datasource=github-tags depName=mikefarah/yq
-ARG YQ_VERSION=v4.47.1
+ARG YQ_VERSION=v4.52.4
 # renovate: datasource=github-tags depName=grafana/tanka
-ARG TANKA_VERSION=v0.33.0
+ARG TANKA_VERSION=v0.36.3
 
 
-FROM ${REGISTRY_MIRROR}fluxcd/flux-cli:v2.6.4 as flux
-FROM ${REGISTRY_MIRROR_LIB}alpine:3.22 AS base
+FROM ${REGISTRY_MIRROR}fluxcd/flux-cli:v2.8.3 as flux
+FROM ${REGISTRY_MIRROR_LIB}alpine:3.23 AS base
 
 LABEL maintainer="oc@teuto.net"
 LABEL tools="kubectl,sops,tanka,flux,envsubst,docker,helm,yq,jq"
@@ -28,7 +28,7 @@ ARG HELM_VERSION \
     USER_ID \
     GROUP_ID
 
-RUN apk update && \
+RUN apk update && apk upgrade && \
   apk  add  --no-cache \
   bash \
   ca-certificates \
