@@ -94,18 +94,27 @@ build-scan-push:
         then
           echo "No changes for $BUILD_CONTEXT in this MR"
 
+          RETAG_FAILED=0
+
           for tag in $ALL_TAGS
           do
             s=10
             until crane tag "$CI_REGISTRY_IMAGE/$IMAGE_NAME${VARIANT+-$VARIANT}:$CI_MERGE_REQUEST_DIFF_BASE_SHA" "$tag"
             do
-              [[ $s -lt 3600 ]]
+              if [[ $s -gt 100 ]]
+              then
+                RETAG_FAILED=1
+                break 2
+              fi
               sleep $s
               s=$(( s * 2 ))
             done
           done
 
-          exit 0
+          if [ "$RETAG_FAILED" == "0" ]
+          then
+            exit 0
+          fi
         fi
       fi
     # step 1: build the image
