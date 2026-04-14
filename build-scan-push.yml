@@ -73,12 +73,13 @@ build-scan-push:
         EXTRA_TAGS="$CI_COMMIT_TAG"
       fi
       ALL_TAGS="$CI_COMMIT_SHA $EXTRA_TAGS"
+      NAME_WITH_VARIANT="$IMAGE_NAME${VARIANT+-$VARIANT}"
     - crane auth login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
     - |
-      destination_args="--tar-path=$IMAGE_NAME${VARIANT+-$VARIANT}.tar"
+      destination_args="--tar-path=$NAME_WITH_VARIANT.tar"
       for tag in $ALL_TAGS
       do
-        destination_args="$destination_args --destination $CI_REGISTRY_IMAGE/$IMAGE_NAME${VARIANT+-$VARIANT}:$tag"
+        destination_args="$destination_args --destination $CI_REGISTRY_IMAGE/$NAME_WITH_VARIANT:$tag"
       done
 
       BUILD_CONTEXT=${IMAGE_DIR}
@@ -99,7 +100,7 @@ build-scan-push:
           for tag in $ALL_TAGS
           do
             s=10
-            until crane tag "$CI_REGISTRY_IMAGE/$IMAGE_NAME${VARIANT+-$VARIANT}:$CI_MERGE_REQUEST_DIFF_BASE_SHA" "$tag"
+            until crane tag "$CI_REGISTRY_IMAGE/$NAME_WITH_VARIANT:$CI_MERGE_REQUEST_DIFF_BASE_SHA" "$tag"
             do
               if [[ $s -gt 100 ]]
               then
@@ -136,7 +137,7 @@ build-scan-push:
         --build-arg IMAGE_BUILD_SHA=$CI_COMMIT_SHORT_SHA \
         $destination_args \
         --cache=true \
-        --cache-repo=$CI_REGISTRY_IMAGE/$IMAGE_NAME${VARIANT+-$VARIANT}/kaniko-cache \
+        --cache-repo=$CI_REGISTRY_IMAGE/$NAME_WITH_VARIANT/kaniko-cache \
         --label "org.opencontainers.image.source=${CI_PROJECT_URL}" \
         --label "org.opencontainers.image.revision=${CI_COMMIT_SHA}" \
         --label "org.opencontainers.image.version=${tag}"
@@ -155,19 +156,21 @@ build-scan-push:
         TRIVY_OPTIONS="$TRIVY_OPTIONS --ignorefile $IMAGE_DIR/.trivyignore"
       fi
       # Build report
-      trivy image $TRIVY_OPTIONS --exit-code 0 --format json -o scanning-report-$IMAGE_NAME${VARIANT+-$VARIANT}.json --input $IMAGE_NAME${VARIANT+-$VARIANT}.tar
+      trivy image $TRIVY_OPTIONS --exit-code 0 --format json -o scanning-report-$NAME_WITH_VARIANT.json --input $NAME_WITH_VARIANT.tar
+      # Create SBOM
+      syft scan docker-archive:./$NAME_WITH_VARIANT.tar -o cyclonedx-json=sbom-$NAME_WITH_VARIANT.json
       # Print report
-      trivy image $TRIVY_OPTIONS --exit-code 0 --severity HIGH,CRITICAL --input $IMAGE_NAME${VARIANT+-$VARIANT}.tar
+      trivy image $TRIVY_OPTIONS --exit-code 0 --severity HIGH,CRITICAL --input $NAME_WITH_VARIANT.tar
       # Report severe vulnerabilities for non MRs
       # fail only on non MRs
       if [ -z "$CI_MERGE_REQUEST_IID" ]; then
-        trivy image $TRIVY_OPTIONS --exit-code 1 --severity CRITICAL --input $IMAGE_NAME${VARIANT+-$VARIANT}.tar
+        trivy image $TRIVY_OPTIONS --exit-code 1 --severity CRITICAL --input $NAME_WITH_VARIANT.tar
       fi
     # step 3: upload the image
     - |
       for tag in $ALL_TAGS
       do
-        crane push "$IMAGE_NAME${VARIANT+-$VARIANT}.tar" "$CI_REGISTRY_IMAGE/$IMAGE_NAME${VARIANT+-$VARIANT}:$tag"
+        crane push "$NAME_WITH_VARIANT.tar" "$CI_REGISTRY_IMAGE/$NAME_WITH_VARIANT:$tag"
       done
 
   artifacts:
@@ -175,6 +178,7 @@ build-scan-push:
     name: "scan-report"
     paths:
       - scanning-report-$IMAGE_NAME${VARIANT+-$VARIANT}.json
+      - sbom-$IMAGE_NAME${VARIANT+-$VARIANT}.json
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
       variables:
@@ -183,6 +187,73 @@ build-scan-push:
       variables:
         EXTRA_TAGS: $CI_COMMIT_TAG
     - when: on_success
+
+upload-boms:
+  stage: build
+  needs:
+    - job: build-scan-push
+      artifacts: true
+  image: registry.gitlab.com/gitlab-ci-utils/curl-jq:4.0.2
+  script:
+    - |
+      function create_or_get_project() {
+        VERSION="$1"
+        CREATE_EXTRA_JSON="$2"
+
+        set +e
+        PROJECT_UUID=`curl --fail -s "$DTRACK_API/v1/project/lookup?name=$CI_PROJECT_NAME&version=$VERSION" --header "X-Api-Key: $DTRACK_KEY" | jq -r '.uuid'`
+        set -e
+
+        if [ -z "$PROJECT_UUID" ]
+        then
+          PROJECT_UUID=`curl --fail -s -X PUT "$DTRACK_API/v1/project" --json "{\"name\": \"$CI_PROJECT_NAME\", \"version\": \"$VERSION\" ${CREATE_EXTRA_JSON}}" --header "X-Api-Key: $DTRACK_KEY" | jq -r '.uuid'`
+        fi
+
+        echo "$PROJECT_UUID"
+      }
+    - |
+    
+      if [ -z "DTRACK_API" ]; then
+        echo "Dependency-Track integration is disabled"
+      else
+        if [ -z "$DTRACK_KEY" ]; then
+          echo "WARNING: DTRACK_API set but DTRACK_KEY not set, Dependency-Track integration is disabled"
+        else
+          echo "Dependency-Track integration"
+          echo "creating project(s)"
+          if [ -n "$CI_COMMIT_TAG" ]; then
+            create_or_get_project production ", \"collectionLogic\": \"AGGREGATE_DIRECT_CHILDREN\""
+            DTRACK_PROJECT_VERSION=production
+          else
+            if [ "$CI_COMMIT_BRANCH" == "$CI_DEFAULT_BRANCH" ]; then
+              create_or_get_project staging ", \"collectionLogic\": \"AGGREGATE_DIRECT_CHILDREN\""
+              DTRACK_PROJECT_VERSION=staging
+            else
+              FEATURE_PROJECT_UUID="`create_or_get_project feature`"
+              create_or_get_project "$CI_COMMIT_SHA" ", \"parent\": {\"uuid\": \"$FEATURE_PROJECT_UUID\"}, \"collectionLogic\": \"AGGREGATE_DIRECT_CHILDREN\""
+              DTRACK_PROJECT_VERSION="$CI_COMMIT_SHA"
+            fi
+          fi
+          
+          for SBOM_FILE in $(find . -maxdepth 1 -name "sbom-*.json")
+          do
+            NAME_WITH_VARIANT="${SBOM_FILE%.json}"
+            NAME_WITH_VARIANT="${NAME_WITH_VARIANT#./}"
+            NAME_WITH_VARIANT="${NAME_WITH_VARIANT#sbom-}"
+            echo "uploading bom for $NAME_WITH_VARIANT"
+            curl -s --location --request POST $DTRACK_API/v1/bom \
+              --header "X-Api-Key: $DTRACK_KEY" \
+              --header "Content-Type: multipart/form-data" \
+              --form "autoCreate=true" \
+              --form "projectName=$CI_PROJECT_NAME/$NAME_WITH_VARIANT" \
+              --form "projectVersion=$DTRACK_PROJECT_VERSION" \
+              --form "parentName=$CI_PROJECT_NAME" \
+              --form "parentVersion=$DTRACK_PROJECT_VERSION" \
+              --form "bom=@$SBOM_FILE"
+          done
+
+        fi
+      fi
 
 vulnerability-guard:
   stage: build
