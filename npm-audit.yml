@@ -18,6 +18,10 @@ npm-audit:
             NPM_AUDIT_OPTIONS="$NPM_AUDIT_OPTIONS --package-lock-only"
           fi
 
+          if [ $NPM_BINARY == "pnpm" ]; then
+            NPM_AUDIT_OPTIONS="$NPM_AUDIT_OPTIONS --ignore-registry-errors"
+          fi
+
           for NPM_PKG in $PKGS; do
               NPM_DIR="${PROJECT_DIR}/$(dirname $NPM_PKG)"
               echo "$NPM_BINARY audit $NPM_DIR ..."
