@@ -213,7 +213,7 @@ upload-boms:
       }
     - |
     
-      if [ -z "DTRACK_API" ]; then
+      if [ -z "$DTRACK_API" ]; then
         echo "Dependency-Track integration is disabled"
       else
         if [ -z "$DTRACK_KEY" ]; then
