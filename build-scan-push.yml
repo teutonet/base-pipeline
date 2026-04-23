@@ -188,10 +188,28 @@ build-scan-push:
         EXTRA_TAGS: $CI_COMMIT_TAG
     - when: on_success
 
+scan-project:
+  stage: build
+  image:
+    name: tickets.teuto.net:5050/teuto-public/base-pipeline/kaniko-trivy:$PIPELINE_IMAGE_VERSION
+    entrypoint: [""]
+  needs: []
+  script:
+    - |
+      syft scan dir:. -o cyclonedx-json=sbom-root.json
+  artifacts:
+    name: "scan-report"
+    paths:
+      - sbom-root.json
+  rules:
+    - *default_rules
+
 upload-boms:
   stage: build
   needs:
     - job: build-scan-push
+      artifacts: true
+    - job: scan-project
       artifacts: true
   image: registry.gitlab.com/gitlab-ci-utils/curl-jq:4.0.2
   script:
