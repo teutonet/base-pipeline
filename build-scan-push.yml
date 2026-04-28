@@ -240,18 +240,20 @@ upload-boms:
           echo "Dependency-Track integration"
           echo "creating project(s)"
           if [ -n "$CI_COMMIT_TAG" ]; then
-            create_or_get_project production ", \"collectionLogic\": \"AGGREGATE_DIRECT_CHILDREN\""
+            PROJECT_UUID=`create_or_get_project production ", \"collectionLogic\": \"AGGREGATE_DIRECT_CHILDREN\""`
             DTRACK_PROJECT_VERSION=production
           else
             if [ "$CI_COMMIT_BRANCH" == "$CI_DEFAULT_BRANCH" ]; then
-              create_or_get_project staging ", \"collectionLogic\": \"AGGREGATE_DIRECT_CHILDREN\""
+              PROJECT_UUID=`create_or_get_project staging ", \"collectionLogic\": \"AGGREGATE_DIRECT_CHILDREN\""`
               DTRACK_PROJECT_VERSION=staging
             else
               FEATURE_PROJECT_UUID="`create_or_get_project feature`"
-              create_or_get_project "$CI_COMMIT_SHA" ", \"parent\": {\"uuid\": \"$FEATURE_PROJECT_UUID\"}, \"collectionLogic\": \"AGGREGATE_DIRECT_CHILDREN\""
+              PROJECT_UUID=`create_or_get_project "$CI_COMMIT_SHA" ", \"parent\": {\"uuid\": \"$FEATURE_PROJECT_UUID\"}, \"collectionLogic\": \"AGGREGATE_DIRECT_CHILDREN\""`
               DTRACK_PROJECT_VERSION="$CI_COMMIT_SHA"
             fi
           fi
+
+          echo "view the project at: ${DTRACK_API%/api}/projects/$PROJECT_UUID"
           
           for SBOM_FILE in $(find . -maxdepth 1 -name "sbom-*.json")
           do
