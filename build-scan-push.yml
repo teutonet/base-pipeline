@@ -158,7 +158,7 @@ build-scan-push:
       # Build report
       trivy image $TRIVY_OPTIONS --exit-code 0 --format json -o scanning-report-$NAME_WITH_VARIANT.json --input $NAME_WITH_VARIANT.tar
       # Create SBOM
-      syft scan docker-archive:./$NAME_WITH_VARIANT.tar -o cyclonedx-json=sbom-$NAME_WITH_VARIANT.json
+      SYFT_FILE_METADATA_SELECTION=none syft scan docker-archive:./$NAME_WITH_VARIANT.tar -o cyclonedx-json=sbom-$NAME_WITH_VARIANT.json
       # Print report
       trivy image $TRIVY_OPTIONS --exit-code 0 --severity HIGH,CRITICAL --input $NAME_WITH_VARIANT.tar
       # Report severe vulnerabilities for non MRs
