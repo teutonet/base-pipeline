@@ -125,7 +125,7 @@ build-scan-push:
 
     - |
       /kaniko/executor \
-        --registry-mirror mirror.gcr.io \
+        ${REGISTRY_MIRROR+--registry-mirror $REGISTRY_MIRROR} \
         --context tar://<(cd "$BUILD_CONTEXT" && tar chmz .) \
         `# '--dockerfile' must be set because kaniko only uses the dockerfile from '--context' if none exists in the project folder` \
         --dockerfile "${BUILD_CONTEXT}/Dockerfile" \
