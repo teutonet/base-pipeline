@@ -155,6 +155,10 @@ build-scan-push:
       then
         TRIVY_OPTIONS="$TRIVY_OPTIONS --ignorefile $IMAGE_DIR/.trivyignore"
       fi
+      if [ -f "$IMAGE_DIR/ignore.rego" ]
+      then
+        TRIVY_OPTIONS="$TRIVY_OPTIONS --ignore-policy $IMAGE_DIR/ignore.rego"
+      fi
       # Build report
       trivy image $TRIVY_OPTIONS --exit-code 0 --format json -o scanning-report-$NAME_WITH_VARIANT.json --input $NAME_WITH_VARIANT.tar
       # Create SBOM

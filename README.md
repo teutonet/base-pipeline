@@ -66,7 +66,7 @@ Based on `martizih/kaniko` (rootless image builds without a Docker daemon), exte
 - **Syft** – SBOM generation (CycloneDX)
 - **git** – for merge-base comparisons (avoiding unnecessary rebuilds)
 
-Used by `build-scan-push`, `scan-project`, and jobs related to `create-release`. A project- or image-specific `.trivyignore` file in the image's context directory is picked up automatically.
+Used by `build-scan-push`, `scan-project`, and jobs related to `create-release`. A project- or image-specific [`.trivyignore`](https://trivy.dev/docs/latest/configuration/filtering/#trivyignore) and/or [`ignore.rego`](https://trivy.dev/docs/latest/configuration/filtering/#by-rego) file in the image's context directory is picked up automatically.
 
 ### 3. `release-tools`
 
