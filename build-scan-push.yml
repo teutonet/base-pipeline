@@ -37,9 +37,6 @@ build-scan-push:
   image:
     name: tickets.teuto.net:5050/teuto-public/base-pipeline/kaniko-trivy:$PIPELINE_IMAGE_VERSION
     entrypoint: [""]
-  cache:
-    paths: [.cache/trivy]
-    key: vulndb
   needs:
     - fetch-version
   script:
@@ -149,7 +146,6 @@ build-scan-push:
       TRIVY_OPTIONS="\
         --db-repository mirror.teuto.net/ghcr.io/aquasecurity/trivy-db:2 \
         --java-db-repository mirror.teuto.net/ghcr.io/aquasecurity/trivy-java-db:1 \
-        --cache-dir $CI_PROJECT_DIR/.cache/trivy \
         --no-progress"
       if [ -f "$IMAGE_DIR/.trivyignore" ]
       then
